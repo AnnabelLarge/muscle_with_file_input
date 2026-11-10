@@ -19,6 +19,8 @@ MUSCLE reads the posteriors from two inputs that cover a whole dataset:
    a deduplicated posterior, in one family or in several).
 
 Per family MUSCLE also needs ``seqs.fasta`` (``write_family_fasta``).
+``run_muscle`` runs it on one family and ``read_msa`` checks and reads
+the result.
 
 The map is built from the stage-1 records (``prepare.prepare_dataset``),
 with no matrix read. ``load_pairs_from_map`` reads it back the way MUSCLE
@@ -26,6 +28,7 @@ will, for the tests.
 """
 
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -185,3 +188,75 @@ def load_pairs_from_map(pair_map, post_dir, family, names):
                                f'says {(lx, ly)} transpose {tr}')
         out[(i, j)] = np.ascontiguousarray(P.T if tr else P)
     return out
+
+
+class MuscleError(RuntimeError):
+    """MUSCLE exited non-zero, or its output does not match the input."""
+
+
+def run_muscle(fasta, out_afa, muscle_bin, post_dir, pair_map, family,
+               consiters=2, refineiters=100, threads=1, extra=(), log=None):
+    """Align ``fasta`` (``write_family_fasta``'s file) with the given
+    posteriors. Output rows are in input order (``-input_order``).
+
+    Returns MUSCLE's stderr; raises ``MuscleError`` if it exits non-zero.
+    """
+    cmd = [muscle_bin, '-align', fasta, '-output', out_afa,
+           '-postdir', post_dir, '-postmap', pair_map,
+           '-postfamily', family, '-input_order',
+           '-consiters', consiters, '-refineiters', refineiters,
+           '-threads', threads, *extra]
+    if log is not None:
+        cmd += ['-log', log]
+    cmd = [str(c) for c in cmd]
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    if p.returncode != 0:
+        raise MuscleError(f'{family}: {" ".join(cmd)} exited '
+                          f'{p.returncode}:\n{p.stderr[-2000:]}')
+    return p.stderr
+
+
+def read_afa(path):
+    """``[(label, row)]`` of an aligned FASTA (rows may span lines)."""
+    out = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip('\n')
+            if line.startswith('>'):
+                out.append([line[1:], []])
+            elif out:
+                out[-1][1].append(line.strip())
+            elif line.strip():
+                raise MuscleError(f'{path}: text before the first header')
+    return [(lab, ''.join(parts)) for lab, parts in out]
+
+
+def read_msa(out_afa, fam):
+    """MUSCLE's MSA of one family as ``{name: row}``, in ``names`` order.
+
+    Checks that the labels are ``fam['names']``, each once, that the rows
+    have one width, that each row without gaps is the sequence of
+    ``seqs.fasta``, and the reference ``check_msa`` against ``raw_seqs``.
+    The order is not checked: with ``-input_order`` MUSCLE still puts a
+    duplicate sequence right after its first copy (InsertDupes runs after
+    SortMSA).
+    """
+    from run_fsa import check_msa
+    rows = read_afa(out_afa)
+    labels = [lab for lab, _ in rows]
+    if sorted(labels) != sorted(fam['names']) or len(set(labels)) != len(
+            labels):
+        raise MuscleError(f'{out_afa}: labels {labels[:5]}... are not the '
+                          f'family names {list(fam["names"])[:5]}...')
+    want = dict(family_fasta_seqs(fam))
+    widths = {len(r) for _, r in rows}
+    if len(widths) != 1:
+        raise MuscleError(f'{out_afa}: rows have widths {sorted(widths)}')
+    for lab, r in rows:
+        if r.replace('-', '') != want[lab]:
+            raise MuscleError(f'{out_afa}: row {lab} without gaps differs '
+                              f'from seqs.fasta')
+    by_label = dict(rows)
+    msa = {nm: by_label[nm] for nm in fam['names']}
+    check_msa(msa, fam['names'], fam['raw_seqs'])
+    return msa
