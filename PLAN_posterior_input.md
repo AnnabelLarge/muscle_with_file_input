@@ -305,3 +305,53 @@ To do, with the C++ side:
 - **No conversion of posterior code to C++ is needed.** The C++ side gains
   only an `.npy` reader/writer (with transpose), a map lookup by
   (family, labels) and the 0.01 threshold.
+
+## 8. Status (2026-11-10): all steps done
+
+Branch `posterior-input`. Built with `src/Makefile.offline`; all 156 tests in
+`py/tests` pass in 16 s (`MUSCLE_BIN=bin/muscle python -m pytest py/tests`).
+
+| plan test | file | result |
+|---|---|---|
+| 1 baseline determinism | `test_baseline.py` | 12 passed (1 and 8 threads, with options) |
+| 2 C++ round trip | `test_roundtrip_cpp.py` | 77 passed: 4 families × 16 option sets byte-identical; dump does not depend on threads; re-dump of what was read is identical |
+| 3 shared dedup folder | `test_dedup_store.py` | 5 passed (see deviations) |
+| 4 real stage 0–1 pipeline | `test_pipeline.py` | 12 passed: 5 toy bali3 families byte-identical to built-in |
+| 5 failures | `test_failures_cpp.py` | 39 passed |
+| 6 real data | `test_real_smoke.py` | 4 passed (scores below) |
+| preprocessing | `test_pair_map.py` | 7 passed |
+
+Test 6, mean MSA SP / TC (core columns) over the families checked, MUSCLE
+vs. FSA progressive with the same settings (`ci2_ri100`, neuralTKF):
+prefab (9 families of 2 sequences) 0.590 / 0.590 for both (identical per
+family, as expected for pairwise MEA); sabre-twi (6 families of 3–4
+sequences) 0.413 / 0.239 vs. 0.405 / 0.239. Rescoring FSA's saved MSAs
+reproduces its `scores.json`.
+
+Deviations from the text above, found while implementing:
+
+- **Orientation and MUSCLE's own HMM.** MUSCLE's posterior of (b, a) is not
+  bit for bit the transpose of (a, b): on n12, relative differences up to
+  1.5e-3 where both are nonzero, and 1 entry of 22,875 zeroed in one only.
+  So test 3 compares a family with its built-in run only when every shared
+  pair keeps MUSCLE's orientation. Every family is also compared with a run on
+  a plain folder holding the matrices the map implies (no sharing, no
+  transpose), which must give the same bytes. Given posteriors are not
+  affected: the map defines the orientation.
+- **Duplicate order in the output.** With `-input_order`, MUSCLE still puts a
+  duplicate right after its first copy (`InsertDupes` runs after `SortMSA`).
+  So `read_msa` checks that the labels are `fam['names']`, each once, and
+  returns the rows in `names` order. `prepare.save_msa` does not run
+  `check_msa`, so `read_msa` calls it.
+- **Extra guards with `-postdir`:** `-hmmin` and the transition options
+  (`-s_is -s_il -m_is -m_il -is_is -il_il`) are refused too, since they also
+  change only the HMM. `-postout` may be combined with `-postdir`, which
+  re-dumps what was read after the 0.01 threshold, but it must name another
+  directory. `-postout` is refused with Mega input, Super5 and multi-run
+  options.
+- **NaN check.** The build uses `-ffast-math`, under which GCC may fold
+  `std::isfinite` to true, so `LoadPost` tests the exponent bits.
+- **Threading.** MUSCLE's `Ps`/`CreateStdioFile` helpers keep global state, so
+  the OpenMP loop uses only plain stdio and `std::string`.
+- **Threshold.** No dump of the test families had a nonzero value below 0.01,
+  so the log-space vs. linear threshold (§7) did not matter in any test.

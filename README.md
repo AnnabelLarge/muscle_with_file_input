@@ -46,3 +46,46 @@ Edgar RC., Muscle5: High-accuracy alignment ensembles enable unbiased assessment
 [https://www.nature.com/articles/s41467-022-34630-w.pdf](https://www.nature.com/articles/s41467-022-34630-w.pdf)
 
 Edgar RC. and Tolstoy I., Muscle-3D: scalable multiple protein structure alignment (2024) <i>BioRxiv</i>.
+### Pair posteriors from files (this fork)
+
+`muscle -align` can take its pair posteriors from files instead of its own
+pair HMM. Every later step (EA distances, guide tree, consistency,
+progressive alignment, refinement) is unchanged. Details:
+[PLAN_posterior_input.md](PLAN_posterior_input.md).
+
+```
+muscle -align seqs.fasta -output aln.afa \
+  -postdir DIR -postmap pair_map.tsv -postfamily FAMILY   # read posteriors
+muscle -align seqs.fasta -output aln.afa \
+  -postout DUMP [-postfamily FAMILY]                      # save MUSCLE's own
+```
+
+- `DIR` holds float32 `.npy` matrices (C order), one per deduplicated pair.
+- `pair_map.tsv` has the columns `family row_label col_label LX LY file
+  transpose`, with one line per pair of each family. `row_label` is the
+  sequence that comes first in `seqs.fasta`, and `file` is relative to `DIR`.
+  The file has shape `(LX, LY)`, or `(LY, LX)` when `transpose` is 1.
+- On load, values below 0.01 are set to 0, as for MUSCLE's own posteriors.
+  NaN, inf, negative values, a missing or mis-oriented pair and wrong shapes
+  stop the run.
+- `-perturb` > 0, `-stratified`, `-diversified`, `-replicates`, `-hmmin` and
+  the HMM transition options are refused with `-postdir`.
+- A dump read back with `-postdir DUMP -postmap DUMP/pair_map.tsv` gives the
+  same MSA as the built-in run, byte for byte.
+
+Offline build (no network): `make -C src -f Makefile.offline -j 8`, which
+writes `bin/muscle`.
+
+For the benchmark datasets of the FSA workflow
+(`../msa_with_new_decoder/fsa_scoring_on_ada_new_decoder`), `py/run_muscle.py`
+runs stages 0–1 of that workflow, writes the map, and aligns each family:
+
+```
+python py/run_muscle.py --dataset sabre-twi \
+  --posterior-root /mnt/sdb/annabel/2d_posteriors_bali3_ox_prefab_sabre/neuralTKF_sabre \
+  --out out_sabre_twi_muscle --n-workers 8 --jobs 8
+```
+
+The MSAs are written to `<out>/msas/muscle/<family>.fasta`. Tests:
+`MUSCLE_BIN=bin/muscle python -m pytest py/tests`. The tests on real data are
+skipped when `/mnt/sdb` (or `$FSA_REAL_POSTERIORS`) is absent.
