@@ -25,7 +25,8 @@ from muscle_posteriors import (FSA_SCORING, family_fasta_seqs,  # noqa: E402
                                load_pairs_from_map, read_pair_map,
                                write_family_fasta, write_pair_map)
 
-sys.path.insert(0, os.path.join(FSA_SCORING, 'tests'))
+# for layout.py (appended: this directory's conftest must win)
+sys.path.append(os.path.join(FSA_SCORING, 'tests'))
 from prepare import load_family, prepare_dataset  # noqa: E402
 from run_fsa import residues_match  # noqa: E402
 
@@ -99,10 +100,12 @@ def toy_families(rng):
 
 @pytest.fixture(scope='module')
 def toy(tmp_path_factory):
-    from conftest import toy_layout  # the FSA workflow's tests/conftest.py
+    from layout import write_layout  # the FSA workflow's tests/layout.py
     root = tmp_path_factory.mktemp('toy')
     rng = np.random.default_rng(3)
-    paths = toy_layout(root, toy_families(rng), seed=1)
+    paths = write_layout(str(root), 'bali3',
+                         ('BALI3-SHORT', 'BALI3-MEDIUM', 'BALI3-LONG'),
+                         'bali3', toy_families(rng), seed=1)
     prep = prepare_dataset('bali3', paths['posterior_root'],
                            str(root / 'work'),
                            data_dir=paths['data_dir'],

@@ -1,0 +1,51 @@
+# Offline build of muscle (no network needed).
+#
+#   make -C src -f Makefile.offline -j 8
+#
+# Same flags, source list and output path (../bin/muscle) as the Makefile
+# that build_linux.bash generates with vcxproj_make.py (pinned 806d016).
+# That script writes src/Makefile (git-ignored), so this file has another
+# name. The sources are read from muscle.vcxproj, which leaves out
+# alpha.cpp and help.cpp (they would duplicate symbols).
+
+BINDIR := ../bin
+OBJDIR := o
+BINPATH := $(BINDIR)/muscle
+
+CXX ?= g++
+CXXFLAGS := $(CXXFLAGS) -ffast-math -march=native -O3 -DNDEBUG -fopenmp
+LDFLAGS := $(LDFLAGS) -ffast-math -march=native -O3 -fopenmp
+
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+    LDFLAGS += -static
+endif
+
+SRCS := $(shell sed -n 's/.*<ClCompile Include="\([^"]*\.cpp\)".*/\1/p' muscle.vcxproj)
+OBJS := $(SRCS:%.cpp=$(OBJDIR)/%.o)
+HDRS := $(wildcard *.h)
+
+.PHONY: all clean FORCE
+
+all: $(BINPATH)
+
+# gitver.txt is included by myutils.cpp; rewritten only when the hash changes.
+gitver.txt: FORCE
+	@v="\"$$(git log --oneline 2>/dev/null | head -n1 | cut '-d ' -f1)\""; \
+	if [ "$$v" = '""' ]; then v='"0"'; fi; \
+	if [ ! -f $@ ] || [ "$$(cat $@)" != "$$v" ]; then echo "$$v" > $@; fi
+
+$(BINPATH): $(OBJS) | $(BINDIR)/
+	$(CXX) $(LDFLAGS) $(OBJS) -o $(BINPATH)
+	strip $(BINPATH)
+
+$(OBJDIR)/myutils.o: gitver.txt
+
+$(OBJDIR)/%.o: %.cpp $(HDRS) | $(OBJDIR)/
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+
+$(OBJDIR)/ $(BINDIR)/:
+	mkdir -p $@
+
+clean:
+	rm -rf $(OBJDIR)/ $(BINPATH)
