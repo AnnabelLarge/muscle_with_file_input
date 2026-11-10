@@ -72,6 +72,8 @@ void MPCFlat::CalcPosterior(uint PairIndex)
 	asserta(LY2 == LY);
 
 	float *Post = CalcPost(LabelX, LabelY);
+	if (!m_PostOutDir.empty())
+		SavePost(PairIndex, LabelX, LabelY, GSIX, GSIY, Post, LX, LY);
 
 	MySparseMx &SparsePost = GetSparsePost(PairIndex);
 	SparsePost.FromPost(Post, LX, LY);

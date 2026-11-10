@@ -197,6 +197,12 @@
     <ClCompile Include="mpcflat.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="npy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="postio.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="progalnflat.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -863,6 +869,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="mpcflat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="npy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="locallock.h">

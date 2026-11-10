@@ -48,6 +48,14 @@ public:
 	vector<MySparseMx *> *m_ptrSparsePosts = &m_SparsePosts1;
 	vector<MySparseMx *> *m_ptrUpdatedSparsePosts = &m_SparsePosts2;
 
+// Posteriors from / to files (postio.cpp), set by cmd_align.
+// -postout DIR: save each pair's dense posterior as DIR/pairs/<i>_<j>.npy
+// (i < j: indexes in the original input), plus DIR/pair_map.tsv and
+// DIR/seqs.fasta. m_PostFamily is the map's family column.
+	string m_PostOutDir;
+	string m_PostFamily = "-";
+	vector<string> m_PostOutMapLines;	// one per PairIndex
+
 public:
 	~MPCFlat()
 		{
@@ -74,6 +82,10 @@ public:
 	void InitDistMx();
 	void CalcPosterior(uint PairIndex);
 	void CalcPosteriors();
+	void PostOutBegin();
+	void PostOutEnd() const;
+	void SavePost(uint PairIndex, const string &LabelX, const string &LabelY,
+	  uint GSIX, uint GSIY, const float *Post, uint LX, uint LY);
 	void Consistency();
 	void ConsIter(uint Iter);
 	void ConsPair(uint PairIndex);

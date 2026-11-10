@@ -317,6 +317,8 @@
     <ClCompile Include="maxcc.cpp" />
     <ClCompile Include="mega_msas.cpp" />
     <ClCompile Include="mpcflat.cpp" />
+    <ClCompile Include="npy.cpp" />
+    <ClCompile Include="postio.cpp" />
     <ClCompile Include="eadistmx.cpp" />
     <ClCompile Include="eadistmxmsas.cpp" />
     <ClCompile Include="fasta.cpp" />
@@ -487,6 +489,7 @@
     <ClInclude Include="mega.h" />
     <ClInclude Include="mpc.h" />
     <ClInclude Include="mpcflat.h" />
+    <ClInclude Include="npy.h" />
     <ClInclude Include="mpcflat_mega.h" />
     <ClInclude Include="msa.h" />
     <ClInclude Include="multisequence.h" />

@@ -19,6 +19,7 @@ void MPCFlat::Clear()
 	m_JoinIndexes1.clear();
 	m_JoinIndexes2.clear();
 	m_Weights.clear();
+	m_PostOutMapLines.clear();
 	FreeSparsePosts();
 	FreeProgMSAs();
 	}
@@ -238,6 +239,8 @@ void MPCFlat::CalcPosteriors()
 
 	uint PairCount = SIZE(m_Pairs);
 	asserta(PairCount > 0);
+	if (!m_PostOutDir.empty())
+		PostOutBegin();
 	unsigned ThreadCount = GetRequestedThreadCount();
 	uint PairCounter = 0;
 #pragma omp parallel for num_threads(ThreadCount)
@@ -249,6 +252,8 @@ void MPCFlat::CalcPosteriors()
 
 		CalcPosterior(PairIndex);
 		}
+	if (!m_PostOutDir.empty())
+		PostOutEnd();
 	}
 
 void MPCFlat::Refine()
@@ -286,6 +291,7 @@ void MPCFlat::Run(MultiSequence *OriginalInputSeqs)
 	{
 	assert(OriginalInputSeqs != 0);
 	Clear();
+	m_OriginalInputSeqs = OriginalInputSeqs;
 
 	m_D.Run(*OriginalInputSeqs);
 	m_D.Validate();
@@ -296,6 +302,12 @@ void MPCFlat::Run(MultiSequence *OriginalInputSeqs)
 	const uint SeqCount = UniqueSeqs->GetSeqCount();
 	if (SeqCount == 1)
 		{
+	// No pairs; a dump still gets seqs.fasta and a map with no lines.
+		if (!m_PostOutDir.empty())
+			{
+			PostOutBegin();
+			PostOutEnd();
+			}
 		m_MSA = new MultiSequence;
 		m_MSA->Copy(*OriginalInputSeqs);
 		return;

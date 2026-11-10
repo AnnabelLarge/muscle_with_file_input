@@ -52,11 +52,38 @@ static void Align(MPCFlat &M, MultiSequence &InputSeqs,
 	M.m_MSA->WriteMFA(fOut);
 	}
 
+// Options that read or write posterior files (postio.cpp).
+static void SetPostOpts(MPCFlat &M, uint InputSeqCount)
+	{
+	if (!optset_postout)
+		{
+		if (optset_postfamily)
+			Die("-postfamily needs -postout");
+		ProgressLog("Posteriors: built-in\n");
+		return;
+		}
+	if (Mega::m_Loaded)
+		Die("-postout is not supported with Mega input");
+	if (optset_minsuper && InputSeqCount >= opt(minsuper))
+		Die("-postout is not supported with Super5 (-minsuper)");
+	if (opt(stratified) || opt(diversified) || optset_replicates)
+		Die("-postout needs a single run (not -stratified, -diversified "
+		  "or -replicates)");
+	M.m_PostOutDir = opt(postout);
+	if (optset_postfamily)
+		M.m_PostFamily = opt(postfamily);
+	ProgressLog("Posteriors: built-in, saved to %s (family %s)\n",
+	  M.m_PostOutDir.c_str(), M.m_PostFamily.c_str());
+	}
+
 void cmd_align()
 	{
 	MultiSequence InputSeqs;
 	LoadInput(InputSeqs);
 	const uint InputSeqCount = InputSeqs.GetSeqCount();
+
+	MPCFlat M;
+	SetPostOpts(M, InputSeqCount);
 
 	if (optset_minsuper && InputSeqCount >= opt(minsuper))
 		{
@@ -87,7 +114,6 @@ void cmd_align()
 	else
 		SetAlpha(ALPHA_Amino);
 
-	MPCFlat M;
 	if (optset_consiters)
 		M.m_ConsistencyIterCount = opt(consiters);
 	if (optset_refineiters)

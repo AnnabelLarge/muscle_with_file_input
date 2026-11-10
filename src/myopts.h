@@ -61,6 +61,8 @@ STR_OPT(fev)
 STR_OPT(gridspec)
 STR_OPT(spatterspec)
 STR_OPT(kmerdist)
+STR_OPT(postout)		// -align: save pair posteriors (postio.cpp)
+STR_OPT(postfamily)	// family column of the pair map
 
 UNS_OPT(threads)
 UNS_OPT(consiters)
