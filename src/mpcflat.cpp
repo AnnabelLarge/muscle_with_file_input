@@ -20,6 +20,7 @@ void MPCFlat::Clear()
 	m_JoinIndexes2.clear();
 	m_Weights.clear();
 	m_PostOutMapLines.clear();
+	m_PostMap.clear();
 	FreeSparsePosts();
 	FreeProgMSAs();
 	}
@@ -239,6 +240,8 @@ void MPCFlat::CalcPosteriors()
 
 	uint PairCount = SIZE(m_Pairs);
 	asserta(PairCount > 0);
+	if (!m_PostInDir.empty())
+		PostInBegin();
 	if (!m_PostOutDir.empty())
 		PostOutBegin();
 	unsigned ThreadCount = GetRequestedThreadCount();
@@ -302,7 +305,10 @@ void MPCFlat::Run(MultiSequence *OriginalInputSeqs)
 	const uint SeqCount = UniqueSeqs->GetSeqCount();
 	if (SeqCount == 1)
 		{
-	// No pairs; a dump still gets seqs.fasta and a map with no lines.
+	// No pairs; the map is still read and checked, and a dump still
+	// gets seqs.fasta and a map with no lines.
+		if (!m_PostInDir.empty())
+			PostInBegin();
 		if (!m_PostOutDir.empty())
 			{
 			PostOutBegin();

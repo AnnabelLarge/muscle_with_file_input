@@ -56,6 +56,20 @@ public:
 	string m_PostFamily = "-";
 	vector<string> m_PostOutMapLines;	// one per PairIndex
 
+// -postdir D -postmap M -postfamily F: read each pair's posterior from
+// D/<file> instead of running the pair HMM, using the lines of family F
+// of M (key: row_label, col_label).
+	struct PostMapEntry
+		{
+		uint LX = 0;
+		uint LY = 0;
+		string File;
+		bool Transpose = false;
+		};
+	string m_PostInDir;
+	string m_PostMapFileName;
+	map<pair<string, string>, PostMapEntry> m_PostMap;
+
 public:
 	~MPCFlat()
 		{
@@ -82,6 +96,9 @@ public:
 	void InitDistMx();
 	void CalcPosterior(uint PairIndex);
 	void CalcPosteriors();
+	void PostInBegin();
+	float *LoadPost(const string &LabelX, const string &LabelY,
+	  uint LX, uint LY) const;
 	void PostOutBegin();
 	void PostOutEnd() const;
 	void SavePost(uint PairIndex, const string &LabelX, const string &LabelY,

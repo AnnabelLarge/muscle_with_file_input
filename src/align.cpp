@@ -55,25 +55,56 @@ static void Align(MPCFlat &M, MultiSequence &InputSeqs,
 // Options that read or write posterior files (postio.cpp).
 static void SetPostOpts(MPCFlat &M, uint InputSeqCount)
 	{
-	if (!optset_postout)
+	const bool In = optset_postdir || optset_postmap;
+	const bool Out = optset_postout;
+	if (In && !(optset_postdir && optset_postmap && optset_postfamily))
+		Die("-postdir, -postmap and -postfamily must be set together");
+	if (optset_postfamily && !In && !Out)
+		Die("-postfamily needs -postdir or -postout");
+	if (!In && !Out)
 		{
-		if (optset_postfamily)
-			Die("-postfamily needs -postout");
 		ProgressLog("Posteriors: built-in\n");
 		return;
 		}
+
+	const char *Opt = (In ? "-postdir" : "-postout");
 	if (Mega::m_Loaded)
-		Die("-postout is not supported with Mega input");
+		Die("%s is not supported with Mega input", Opt);
 	if (optset_minsuper && InputSeqCount >= opt(minsuper))
-		Die("-postout is not supported with Super5 (-minsuper)");
+		Die("%s is not supported with Super5 (-minsuper)", Opt);
 	if (opt(stratified) || opt(diversified) || optset_replicates)
-		Die("-postout needs a single run (not -stratified, -diversified "
-		  "or -replicates)");
-	M.m_PostOutDir = opt(postout);
-	if (optset_postfamily)
+		Die("%s needs a single run (not -stratified, -diversified or "
+		  "-replicates)", Opt);
+
+	if (In)
+		{
+	// These change only the pair HMM, which is not run with -postdir.
+		if (optset_perturb && opt(perturb) > 0)
+			Die("-perturb has no effect with -postdir");
+		if (optset_hmmin || optset_s_is || optset_s_il || optset_m_is ||
+		  optset_m_il || optset_is_is || optset_il_il)
+			Die("-hmmin and the HMM transition options have no effect "
+			  "with -postdir");
+		if (Out && opt(postout) == opt(postdir))
+			Die("-postout must differ from -postdir");
+		M.m_PostInDir = opt(postdir);
+		M.m_PostMapFileName = opt(postmap);
 		M.m_PostFamily = opt(postfamily);
-	ProgressLog("Posteriors: built-in, saved to %s (family %s)\n",
-	  M.m_PostOutDir.c_str(), M.m_PostFamily.c_str());
+		ProgressLog("Posteriors: from %s (map %s, family %s)\n",
+		  M.m_PostInDir.c_str(), M.m_PostMapFileName.c_str(),
+		  M.m_PostFamily.c_str());
+		}
+	else
+		ProgressLog("Posteriors: built-in\n");
+
+	if (Out)
+		{
+		M.m_PostOutDir = opt(postout);
+		if (optset_postfamily)
+			M.m_PostFamily = opt(postfamily);
+		ProgressLog("Posteriors saved to %s (family %s)\n",
+		  M.m_PostOutDir.c_str(), M.m_PostFamily.c_str());
+		}
 	}
 
 void cmd_align()

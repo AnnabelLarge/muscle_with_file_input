@@ -71,7 +71,11 @@ void MPCFlat::CalcPosterior(uint PairIndex)
 	asserta(LX2 == LX);
 	asserta(LY2 == LY);
 
-	float *Post = CalcPost(LabelX, LabelY);
+	float *Post = 0;
+	if (m_PostInDir.empty())
+		Post = CalcPost(LabelX, LabelY);
+	else
+		Post = LoadPost(LabelX, LabelY, LX, LY);
 	if (!m_PostOutDir.empty())
 		SavePost(PairIndex, LabelX, LabelY, GSIX, GSIY, Post, LX, LY);
 
